@@ -68,7 +68,7 @@ async function start() {
     }
   });
 
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log("========================================");
     console.log(" SmartShelf backend is running!");
     console.log(` API base: http://localhost:${PORT}/api`);
