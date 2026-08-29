@@ -16,8 +16,16 @@ const cron = require("node-cron");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Allow the React frontend (running on a different port) to call this API
-app.use(cors());
+// Allow local and deployed React frontends to call this API
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://smartshelf-frontend-z598.onrender.com"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json());
 
 // Routes
@@ -26,9 +34,11 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 // Simple health check
-app.get("/api/health", (req, res) => res.json({ status: "SmartShelf API is running" }));
+app.get("/api/health", (req, res) => {
+  res.json({ status: "SmartShelf API is running" });
+});
 
-// 404 + centralized error handling (must be registered last)
+// 404 + centralized error handling
 app.use(notFound);
 app.use(errorHandler);
 
@@ -38,14 +48,22 @@ async function start() {
 
   cron.schedule("0 9 * * *", async () => {
     const subscribers = await NotificationSubscriber.find({ active: true });
+
     for (const subscriber of subscribers) {
       try {
         const itemCount = await sendExpiryEmail(subscriber.email);
+
         if (itemCount > 0) {
-          await NotificationSubscriber.updateOne({ _id: subscriber._id }, { lastSentAt: new Date() });
+          await NotificationSubscriber.updateOne(
+            { _id: subscriber._id },
+            { lastSentAt: new Date() }
+          );
         }
       } catch (error) {
-        console.error(`Expiry email failed for ${subscriber.email}:`, error.message);
+        console.error(
+          `Expiry email failed for ${subscriber.email}:`,
+          error.message
+        );
       }
     }
   });
